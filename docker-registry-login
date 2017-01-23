@@ -1,0 +1,77 @@
+#!/usr/bin/env sh
+
+# Automatically `docker login` in cloud image registries based on env variables.
+# Currently supported: Google GCR, AWS ECR
+#
+# # Google GCR
+# Variables:
+# - (required) GCR_KEYFILE_JSON (ex: https://cloud.google.com/container-registry/docs/advanced-authentication#using_a_json_key_file)
+# - (required) GCR_PROJECT (ex: some-org-some-awesome-project)
+# Export:
+# - DOCKER_IMAGE_PREFIX (ex: gcr.io/[project-name])
+#
+# # AWS ECR
+# - (required) AWS_ECR_ACCOUNT_ID (ex: 682952434345)
+# - (required) AWS_ECR_REPOSITORY (ex: some-org/some-awesome-project)
+# - (required) AWS_ACCESS_KEY_ID (ex: AKIAYROEXODTG9NUQVKF)
+# - (required) AWS_SECRET_ACCESS_KEY (ex: 4CPCKXzBcrfk8b8N8b39fTTuLgL3fxCqUiDNMNad)
+# - (optional) AWS_ECR_REGION (ex: eu-west-1)
+# Export:
+# - DOCKER_IMAGE_PREFIX (ex: [account].dkr.ecr.[region].amazonaws.com/[repo])
+
+set -e
+
+AWS_DEFAULT_REGION=eu-west-1
+
+die () {
+  echo "$1" 1>&2
+  exit 1
+}
+
+if [ "$GCR_PROJECT" != "" ] || [ "$GCR_KEYFILE_JSON" != "" ]; then
+  ### ---------------------------------------------------------------------- ###
+  ### Google Container Registry
+  ### ---------------------------------------------------------------------- ###
+
+  # Mandotary variables
+  [ "$GCR_PROJECT" != "" ] || die "Missing variable GCR_PROJECT"
+  [ "$GCR_KEYFILE_JSON" != "" ] || die "Missing variable GCR_KEYFILE_JSON"
+
+  # Process to login
+  docker login -u _json_key -p "$(echo $GCR_KEYFILE_JSON)" https://gcr.io
+
+  # Export config
+  export DOCKER_IMAGE_PREFIX="gcr.io/$GCR_PROJECT"
+
+  echo "Successfully login on Google docker registry"
+
+elif [ "$AWS_ECR_ACCOUNT_ID" != "" ] || [ "$AWS_ECR_REPOSITORY" != "" ] || [ "$AWS_ACCESS_KEY_ID" != "" ] || [ "$AWS_SECRET_ACCESS_KEY" != "" ]; then
+  ### ---------------------------------------------------------------------- ###
+  ### AWS ECR
+  ### ---------------------------------------------------------------------- ###
+
+  # Mandotary variables
+  [ "$AWS_ECR_ACCOUNT_ID" != "" ] || die "Missing variable AWS_ECR_ACCOUNT_ID"
+  [ "$AWS_ECR_REPOSITORY" != "" ] || die "Missing variable AWS_ECR_REPOSITORY"
+  [ "$AWS_ACCESS_KEY_ID" != "" ] || die "Missing variable AWS_ACCESS_KEY_ID"
+  [ "$AWS_SECRET_ACCESS_KEY" != "" ] || die "Missing variable AWS_SECRET_ACCESS_KEY"
+
+  # Default values
+  AWS_ECR_REGION=${AWS_ECR_REGION:-$AWS_DEFAULT_REGION}
+
+  # Process to login
+  eval $(aws ecr get-login)
+
+  # Create repository if not exists
+  aws ecr describe-repositories | grep -q $AWS_ECR_REPOSITORY || \
+    aws ecr create-repository --repository-name $AWS_ECR_REPOSITORY
+
+  # Export config
+  export DOCKER_IMAGE_PREFIX="$AWS_ECR_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$AWS_ECR_REPOSITORY"
+
+  echo "Successfully login on AWS docker registry"
+else
+  die "Could not identify docker registry !"
+fi
+
+echo "Using DOCKER_IMAGE_PREFIX=$DOCKER_IMAGE_PREFIX"
