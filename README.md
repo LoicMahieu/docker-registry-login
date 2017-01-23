@@ -9,7 +9,6 @@ Currently supported:
 
 ## Usage
 
-
 ```sh
 export GCR_KEYFILE_JSON=(cat ./json_key.json)
 export GCR_PROJECT=some-org-some-awesome-project
@@ -32,4 +31,12 @@ image=$DOCKER_IMAGE_PREFIX/app:latest
 
 docker build -t $image .
 docker push $image
+```
+
+## Install
+
+```sh
+git clone https://github.com/loicmahieu/docker-registry-login.git
+cd docker-registry-login
+./install.sh /usr/local
 ```
