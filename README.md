@@ -36,7 +36,7 @@ docker push $image
 ## Install
 
 ```sh
-git clone https://github.com/loicmahieu/docker-registry-login.git
+git clone --branch 0.0.2 https://github.com/loicmahieu/docker-registry-login.git
 cd docker-registry-login
 ./install.sh /usr/local
 ```
